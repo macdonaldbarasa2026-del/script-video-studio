@@ -262,16 +262,33 @@ def build_video(job_id: str, request: RenderRequest, slides: list[dict], work: P
         if sum(durations) > 60:
             raise RuntimeError("Keep the total video length under 60 seconds.")
 
-        image_list = work / "images.txt"
-        with image_list.open("w") as file:
-            for image_path, duration in zip(image_paths, durations):
-                file.write(f"file '{image_path}'\nduration {duration:.3f}\n")
-            file.write(f"file '{image_paths[-1]}'\n")
+        clip_paths: list[Path] = []
+        for index, (image_path, duration) in enumerate(zip(image_paths, durations)):
+            clip_path = work / f"clip-{index:02}.mp4"
+            animation = (
+                f"zoompan=z='min(zoom+0.0005,1.05)':"
+                f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                f"d=1:s={width}x{height}:fps=24,"
+                f"fade=t=in:st=0:d=0.2,"
+                f"fade=t=out:st={duration - 0.2:.3f}:d=0.2,format=yuv420p"
+            )
+            run([
+                "ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "24",
+                "-i", str(image_path), "-t", f"{duration:.3f}", "-vf", animation,
+                "-an", "-c:v", "libx264", "-preset", "ultrafast", "-r", "24",
+                "-pix_fmt", "yuv420p", str(clip_path),
+            ])
+            clip_paths.append(clip_path)
+
+        clip_list = work / "clips.txt"
+        with clip_list.open("w") as file:
+            for clip_path in clip_paths:
+                file.write(f"file '{clip_path}'\n")
 
         output = work / "video.mp4"
         command = [
             "ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-            "-i", str(image_list),
+            "-i", str(clip_list),
         ]
         if audio_paths:
             audio_list = work / "audio.txt"
@@ -287,8 +304,7 @@ def build_video(job_id: str, request: RenderRequest, slides: list[dict], work: P
         else:
             command.extend(["-map", "0:v:0"])
         command.extend([
-            "-t", f"{sum(durations):.3f}", "-vf", "fps=24,format=yuv420p",
-            "-c:v", "libx264", "-preset", "ultrafast", "-movflags", "+faststart",
+            "-t", f"{sum(durations):.3f}", "-c:v", "copy", "-movflags", "+faststart",
             str(output),
         ])
         run(command)

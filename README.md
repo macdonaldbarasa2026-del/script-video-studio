@@ -18,9 +18,9 @@ phone. The API and editor are deployed together as a Render web service.
 
 The Render URL is not known until Render creates the service, so the APK asks
 for it on first launch. The app remembers it. The editor offers vertical and
-wide output, script editing, slide previews, accent/background colors, an
-outro call-to-action, and optional narration. Downloaded videos are saved to
-the Android Downloads folder.
+wide output, script editing, slide previews, zoom/fade motion, accent/background
+colors, an outro call-to-action, and optional narration. Downloaded videos are
+saved to the Android Downloads folder.
 
 ## Script format
 
