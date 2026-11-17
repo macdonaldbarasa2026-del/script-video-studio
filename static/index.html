@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101426">
+  <title>Script Video Studio</title>
+  <style>
+    :root{color-scheme:dark;--bg:#101426;--panel:#181e33;--muted:#a8b0c5;--accent:#ffc857;--teal:#4fd1c5}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font:15px/1.5 system-ui,sans-serif}
+    header{padding:18px max(20px,calc((100vw - 1200px)/2));border-bottom:1px solid #29304a;display:flex;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}header span{color:var(--muted);font-size:13px}.layout{max-width:1200px;margin:28px auto;padding:0 20px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:22px}
+    .panel{background:var(--panel);border:1px solid #29304a;border-radius:16px;padding:20px}.label{display:block;color:var(--muted);font-size:13px;margin:0 0 8px}
+    textarea{width:100%;min-height:390px;resize:vertical;background:#0d1120;color:#fff;border:1px solid #343c58;border-radius:11px;padding:15px;font:14px/1.6 ui-monospace,monospace}
+    input,select{accent-color:var(--accent)}.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}.control{background:#11172a;border-radius:10px;padding:12px}
+    .control label{display:flex;justify-content:space-between;align-items:center;color:#e8ebf3;font-size:13px}.color{width:36px;height:27px;border:0;background:none;padding:0}
+    .buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}button,.download{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;text-decoration:none}
+    button.primary{background:var(--accent);color:#151515}button.secondary{background:#303851;color:#fff}button:disabled{opacity:.55;cursor:wait}
+    .status{color:var(--muted);min-height:24px;margin-top:12px;font-size:13px}.preview-wrap{display:flex;justify-content:center;padding:8px 0 18px}
+    .preview{width:min(100%,290px);aspect-ratio:9/16;border-radius:16px;background:linear-gradient(150deg,#1d2841,#101426 70%);border:1px solid #3a4561;display:flex;align-items:center;justify-content:center;text-align:center;padding:23px;position:relative;overflow:hidden}
+    .preview:before{content:"";position:absolute;top:14%;left:10%;right:10%;height:4px;background:var(--teal);border-radius:8px}.preview-title{font-size:22px;font-weight:750;color:var(--accent)}
+    .preview-points{text-align:left;font-size:13px;line-height:1.55}.preview-points h3{color:var(--accent);font-size:17px}.preview-points p:before{content:"• ";color:var(--teal);font-size:18px}
+    .slide-nav{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}.download{display:block;text-align:center;background:var(--teal);color:#071513;margin-top:14px}.download[hidden]{display:none}
+    .hint{color:var(--muted);font-size:12px;margin:8px 0 0}.switch{display:flex;gap:8px;align-items:center}.wide-label{color:var(--muted);font-size:13px}
+    @media(max-width:760px){.layout{grid-template-columns:1fr;margin:16px auto;gap:16px}textarea{min-height:290px}header{padding:14px 20px}.controls{gap:9px}}
+  </style>
+</head>
+<body>
+  <header><h1>Script Video Studio</h1><span>Write it. Preview it. Make your video.</span></header>
+  <main class="layout">
+    <section class="panel">
+      <label class="label" for="script">Your video script</label>
+      <textarea id="script" spellcheck="false"></textarea>
+      <p class="hint">Use # title, ## section, - bullet, &gt; fact card, and say: narration override.</p>
+      <div class="controls">
+        <div class="control"><label for="format">Video format
+          <select id="format"><option value="vertical">Vertical 9:16</option><option value="wide">Wide 16:9</option></select></label></div>
+        <div class="control"><label class="switch" for="voice"><input type="checkbox" id="voice" checked> Voice narration</label></div>
+        <div class="control"><label for="cta">Outro text</label><input id="cta" value="Follow for more" maxlength="100"></div>
+        <div class="control"><label for="background">Background <input class="color" type="color" id="background" value="#101426"></label></div>
+        <div class="control"><label for="accent">Title color <input class="color" type="color" id="accent" value="#ffc857"></label></div>
+        <div class="control"><label for="accent2">Detail color <input class="color" type="color" id="accent2" value="#4fd1c5"></label></div>
+      </div>
+      <div class="buttons"><button class="primary" id="render">Generate video</button><button class="secondary" id="sample">Load sample</button></div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </section>
+    <section class="panel">
+      <span class="label">Slide preview</span>
+      <div class="preview-wrap"><div class="preview" id="preview"></div></div>
+      <div class="slide-nav"><button class="secondary" id="previous">Previous</button><span id="counter"></span><button class="secondary" id="next">Next</button></div>
+      <a class="download" id="download" hidden>Download MP4</a>
+    </section>
+  </main>
+  <script>
+    const sample = `# 3 Money Habits That Compound
+## Habit 1
+- Pay yourself first
+- Automate savings on payday
+> Small automatic steps beat big occasional ones.
+## Habit 2
+- Track every subscription
+- Cancel what you don't use
+## Habit 3
+- Invest in index funds
+- Reinvest the dividends`;
+    const el = (id) => document.getElementById(id);
+    const script = el("script"), preview = el("preview"), status = el("status");
+    let slides = [], current = 0, videoUrl = null;
+    function parse(text) {
+      const result = []; let slide = null;
+      for (const raw of text.split(/\r?\n/)) {
+        const line = raw.trim(); if (!line) continue;
+        if (line.startsWith("## ")) { slide = {type:"points",title:line.slice(3),points:[]}; result.push(slide); }
+        else if (line.startsWith("# ")) { slide = null; result.push({type:"title",text:line.slice(2)}); }
+        else if (line.startsWith("> ")) { slide = null; result.push({type:"fact",text:line.slice(2)}); }
+        else if (line.startsWith("- ") || !line.toLowerCase().startsWith("say:")) {
+          if (!slide || slide.type !== "points") { slide={type:"points",title:"More",points:[]}; result.push(slide); }
+          slide.points.push(line.startsWith("- ") ? line.slice(2) : line);
+        }
+      }
+      result.push({type:"outro",text:el("cta").value || "Follow for more"});
+      return result;
+    }
+    function showSlide() {
+      slides = parse(script.value); current = Math.max(0,Math.min(current,slides.length-1));
+      const slide=slides[current]; preview.replaceChildren(); preview.style.aspectRatio=el("format").value==="wide"?"16/9":"9/16";
+      preview.style.background=el("background").value; preview.style.setProperty("--accent",el("accent").value); preview.style.setProperty("--teal",el("accent2").value);
+      if(slide.type==="points"){
+        const wrap=document.createElement("div"), h=document.createElement("h3");h.textContent=slide.title;wrap.className="preview-points";wrap.append(h);
+        slide.points.forEach(point=>{const p=document.createElement("p");p.textContent=point;wrap.append(p)});preview.append(wrap);
+      }else{const title=document.createElement("div");title.className="preview-title";title.textContent=slide.text;preview.append(title)}
+      el("counter").textContent=`${current+1} / ${slides.length}`;
+    }
+    script.value=sample; showSlide();
+    [script,el("cta"),el("format"),el("background"),el("accent"),el("accent2")].forEach(node=>node.addEventListener("input",showSlide));
+    el("previous").onclick=()=>{current=Math.max(0,current-1);showSlide()};
+    el("next").onclick=()=>{current=Math.min(slides.length-1,current+1);showSlide()};
+    el("sample").onclick=()=>{script.value=sample;current=0;showSlide();status.textContent="Sample script loaded."};
+    el("render").onclick=async()=>{
+      const button=el("render");button.disabled=true;el("download").hidden=true;status.textContent="Preparing your video…";
+      if(videoUrl)URL.revokeObjectURL(videoUrl);
+      try{
+        const response=await fetch("/api/render",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          script:script.value,wide:el("format").value==="wide",voice:el("voice").checked,cta:el("cta").value,
+          background:el("background").value,accent:el("accent").value,accent2:el("accent2").value})});
+        if(!response.ok){let detail="Could not start render.";try{detail=(await response.json()).detail||detail}catch{}throw new Error(detail)}
+        const {jobId}=await response.json();let state;
+        do {
+          await new Promise(resolve=>setTimeout(resolve,2000));
+          const poll=await fetch(`/api/render/${encodeURIComponent(jobId)}`);
+          if(!poll.ok)throw new Error("Render job expired or service restarted. Please try again.");
+          state=await poll.json();
+          status.textContent=state.status==="ready"?"Preparing download…":"Rendering your video…";
+          if(state.status==="failed")throw new Error(state.error||"Video rendering failed.");
+        } while(state.status!=="ready");
+        const result=await fetch(`/api/render/${encodeURIComponent(jobId)}/download`);
+        if(!result.ok)throw new Error("The finished video could not be downloaded.");
+        const blob=await result.blob();videoUrl=URL.createObjectURL(blob);
+        const download=el("download");download.href=videoUrl;download.download="script-video.mp4";download.hidden=false;
+        if(window.VideoStudio){const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob)});window.VideoStudio.saveVideo(dataUrl,"script-video.mp4")}
+        status.textContent=`Video ready (${(blob.size/1048576).toFixed(1)} MB).`;
+      }catch(error){status.textContent=error.message||"Network error. Check the service connection and retry."}
+      finally{button.disabled=false}
+    };
+  </script>
+</body>
+</html>
