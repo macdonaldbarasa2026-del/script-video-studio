@@ -13,14 +13,13 @@ phone. The API and editor are deployed together as a Render web service.
    short videos.
 3. Open the service URL. The editor and `/api/health` are served by that URL.
 4. Install the APK from the **android-apk** artifact of the repository's
-   **Build Android APK** GitHub Actions run. Enter the Render service URL in
-   the app and tap **Connect**.
+   **Build Android APK** GitHub Actions run. The APK opens the configured
+   Render URL on first launch; the URL can be changed in the app.
 
-The Render URL is not known until Render creates the service, so the APK asks
-for it on first launch. The app remembers it. The editor offers vertical and
-wide output, script editing, slide previews, zoom/fade motion, accent/background
-colors, an outro call-to-action, and optional narration. Downloaded videos are
-saved to the Android Downloads folder.
+The editor offers vertical and wide output, script editing, slide previews,
+zoom/fade motion, accent/background colors, an outro call-to-action, and
+optional narration. Downloaded videos are saved to the Android Downloads
+folder.
 
 ## Script format
 

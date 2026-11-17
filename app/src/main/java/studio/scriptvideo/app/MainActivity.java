@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.util.Base64;
 
 public class MainActivity extends Activity {
+    private static final String DEFAULT_SERVICE_URL = "https://script-video-studio.onrender.com";
     private EditText serviceUrl;
     private WebView webView;
     private String connectedHost = "";
@@ -30,9 +31,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildScreen();
-        String saved = getPreferences(MODE_PRIVATE).getString("serviceUrl", "");
+        String saved = getPreferences(MODE_PRIVATE).getString("serviceUrl", DEFAULT_SERVICE_URL);
         serviceUrl.setText(saved);
-        if (!saved.isEmpty()) connect(saved);
+        connect(saved);
     }
 
     private void buildScreen() {
